@@ -205,3 +205,23 @@ elif st.session_state.step == 2:
     with col_b:
         if st.button("🛑 Hoàn tất", use_container_width=True):
             st.info("Kính chúc Thầy/Cô, Anh/Chị và các bạn nhiều sức khỏe! Quý vị có thể đóng tab trình duyệt này.")
+            # ==========================================
+            # KHU VỰC TẢI DỮ LIỆU DÀNH CHO ADMIN
+            # ==========================================
+            if os.path.exists(CSV_FILE):
+                with st.sidebar:
+                    st.write("---")
+                    st.subheader("🔒 Khai thác Dữ liệu (Admin)")
+                    try:
+                        df_admin = pd.read_csv(CSV_FILE)
+                        st.metric("Tổng số lượt so sánh:", len(df_admin))
+
+                        st.download_button(
+                            label="📥 Tải file responses.csv",
+                            data=df_admin.to_csv(index=False).encode('utf-8'),
+                            file_name="responses.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.write("Chưa có lượt điền nào.")
