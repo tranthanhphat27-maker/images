@@ -6,11 +6,19 @@ from datetime import datetime
 import uuid
 
 # ==========================================
-# CẤU HÌNH ĐƯỜNG DẪN & SỐ CÂU
+# CẤU HÌNH ĐƯỜNG DẪN THÔNG MINH (XỬ LÝ LỖI CLOUD)
 # ==========================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-IMAGE_DIR = os.path.join(BASE_DIR, "images")
 CSV_FILE = os.path.join(BASE_DIR, "responses.csv")
+
+# Tự động tìm vị trí chứa ảnh (hoặc ở 'images/', hoặc ngay thư mục gốc)
+sub_image_dir = os.path.join(BASE_DIR, "images")
+valid_extensions = ('.jpg', '.jpeg', '.png', '.webp')
+
+if os.path.exists(sub_image_dir) and any(f.lower().endswith(valid_extensions) for f in os.listdir(sub_image_dir)):
+    IMAGE_DIR = sub_image_dir
+else:
+    IMAGE_DIR = BASE_DIR
 
 TOTAL_PAIRS_PER_SESSION = 20  # 20 câu/lượt khảo sát (~1 - 1.5 phút)
 
@@ -93,7 +101,6 @@ if "pair" not in st.session_state:
 def get_random_pair():
     if not os.path.exists(IMAGE_DIR):
         return None, None
-    valid_extensions = ('.jpg', '.jpeg', '.png', '.webp')
     images = [f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(valid_extensions)]
 
     if len(images) < 2:
@@ -104,7 +111,7 @@ def get_random_pair():
 
 
 # ==========================================
-# MÀN HÌNH 1: MÀN HÌNH CHÀO LỄ PHÉP & TRANG TRỌNG
+# MÀN HÌNH 1: MÀN HÌNH CHÀO
 # ==========================================
 if st.session_state.step == 0:
     st.markdown("<h1 class='main-title'>Khảo Sát Đánh Giá Cảm Nhận Không Gian Đi Bộ tại TP.HCM</h1>",
