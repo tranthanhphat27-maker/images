@@ -10,8 +10,7 @@ import requests
 # CẤU HÌNH DỮ LIỆU & GOOGLE SHEET WEBHOOK
 # ==========================================
 # ⚠️ DÁN LINK WEB APP BẠN VỪA COPY Ở BƯỚC 1 VÀO ĐÂY:
-GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/THAY_LINK_CUA_BAN_VAO_DAY/exec"
-
+GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzZHMKKFx4OSQnZ0nN5zTbqyNxKQ5KYQjO7J3caON6lBGuAcwm0gKhm8uuKh2L4DkKF/exec"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "responses.csv")
 
