@@ -4,14 +4,18 @@ import random
 import pandas as pd
 from datetime import datetime
 import uuid
+import requests
 
 # ==========================================
-# CẤU HÌNH ĐƯỜNG DẪN THÔNG MINH (XỬ LÝ LỖI CLOUD)
+# CẤU HÌNH DỮ LIỆU & GOOGLE SHEET WEBHOOK
 # ==========================================
+# ⚠️ DÁN LINK WEB APP BẠN VỪA COPY Ở BƯỚC 1 VÀO ĐÂY:
+GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/THAY_LINK_CUA_BAN_VAO_DAY/exec"
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "responses.csv")
 
-# Tự động tìm vị trí chứa ảnh (hoặc ở 'images/', hoặc ngay thư mục gốc)
+# Tự động tìm vị trí thư mục ảnh
 sub_image_dir = os.path.join(BASE_DIR, "images")
 valid_extensions = ('.jpg', '.jpeg', '.png', '.webp')
 
@@ -20,7 +24,7 @@ if os.path.exists(sub_image_dir) and any(f.lower().endswith(valid_extensions) fo
 else:
     IMAGE_DIR = BASE_DIR
 
-TOTAL_PAIRS_PER_SESSION = 20  # 20 câu/lượt khảo sát (~1 - 1.5 phút)
+TOTAL_PAIRS_PER_SESSION = 20
 
 st.set_page_config(
     page_title="Khảo Sát Đánh Giá Cảm Nhận Không Gian Đi Bộ tại TP.HCM",
@@ -28,7 +32,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Custom CSS cho giao diện nhã nhặn, chuẩn học thuật
+# Custom CSS
 st.markdown("""
     <style>
     .main-title {
@@ -54,20 +58,10 @@ st.markdown("""
 
 
 # ==========================================
-# XỬ LÝ LƯU KẾT QUẢ VÀO CSV
+# LƯU KẾT QUẢ SANG GOOGLE SHEET + LOCAL CSV
 # ==========================================
-def init_csv():
-    if not os.path.exists(CSV_FILE):
-        df = pd.DataFrame(columns=[
-            "response_id", "user_session_id", "dimension",
-            "image_a", "image_b", "chosen_image", "timestamp"
-        ])
-        df.to_csv(CSV_FILE, index=False)
-
-
 def save_response(dimension, img_a, img_b, chosen):
-    init_csv()
-    new_data = pd.DataFrame([{
+    payload = {
         "response_id": str(uuid.uuid4())[:8],
         "user_session_id": st.session_state.session_id,
         "dimension": dimension,
@@ -75,7 +69,21 @@ def save_response(dimension, img_a, img_b, chosen):
         "image_b": img_b,
         "chosen_image": chosen,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }])
+    }
+
+    # 1. Tự động bắn dữ liệu về Google Sheet (An toàn vĩnh viễn)
+    if GOOGLE_SHEET_WEBHOOK_URL and "THAY_LINK_CUA_BAN_VAO_DAY" not in GOOGLE_SHEET_WEBHOOK_URL:
+        try:
+            requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=5)
+        except Exception:
+            pass  # Tránh làm ngắt trải nghiệm người dùng nếu mạng yếu
+
+    # 2. Lưu dự phòng vào CSV local
+    if not os.path.exists(CSV_FILE):
+        df = pd.DataFrame(columns=list(payload.keys()))
+        df.to_csv(CSV_FILE, index=False)
+
+    new_data = pd.DataFrame([payload])
     new_data.to_csv(CSV_FILE, mode='a', header=False, index=False)
 
 
@@ -154,7 +162,7 @@ elif st.session_state.step == 1:
     st.progress(progress)
     st.caption(f"Tiến độ hoàn thành: **Câu {st.session_state.current_count + 1} / {TOTAL_PAIRS_PER_SESSION}**")
 
-    # Xen kẽ 2 tiêu chí đánh giá
+    # Xen kẽ 2 tiêu chí
     dimension = "An toàn hơn khi đi bộ" if st.session_state.current_count % 2 == 0 else "Thoải mái & Dễ chịu hơn"
 
     st.markdown(
@@ -205,23 +213,3 @@ elif st.session_state.step == 2:
     with col_b:
         if st.button("🛑 Hoàn tất", use_container_width=True):
             st.info("Kính chúc Thầy/Cô, Anh/Chị và các bạn nhiều sức khỏe! Quý vị có thể đóng tab trình duyệt này.")
-            # ==========================================
-            # KHU VỰC TẢI DỮ LIỆU DÀNH CHO ADMIN
-            # ==========================================
-            if os.path.exists(CSV_FILE):
-                with st.sidebar:
-                    st.write("---")
-                    st.subheader("🔒 Khai thác Dữ liệu (Admin)")
-                    try:
-                        df_admin = pd.read_csv(CSV_FILE)
-                        st.metric("Tổng số lượt so sánh:", len(df_admin))
-
-                        st.download_button(
-                            label="📥 Tải file responses.csv",
-                            data=df_admin.to_csv(index=False).encode('utf-8'),
-                            file_name="responses.csv",
-                            mime="text/csv",
-                            use_container_width=True
-                        )
-                    except Exception as e:
-                        st.write("Chưa có lượt điền nào.")
