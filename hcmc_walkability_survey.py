@@ -9,12 +9,12 @@ import requests
 # ==========================================
 # CẤU HÌNH DỮ LIỆU & GOOGLE SHEET WEBHOOK
 # ==========================================
-# ⚠️ DÁN LINK WEB APP BẠN VỪA COPY Ở BƯỚC 1 VÀO ĐÂY:
+# ⚠️ THAY LINK WEBHOOK CỦA BẠN VÀO ĐÂY:
 GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzZHMKKFx4OSQnZ0nN5zTbqyNxKQ5KYQjO7J3caON6lBGuAcwm0gKhm8uuKh2L4DkKF/exec"
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "responses.csv")
 
-# Tự động tìm vị trí thư mục ảnh
 sub_image_dir = os.path.join(BASE_DIR, "images")
 valid_extensions = ('.jpg', '.jpeg', '.png', '.webp')
 
@@ -26,7 +26,7 @@ else:
 TOTAL_PAIRS_PER_SESSION = 20
 
 st.set_page_config(
-    page_title="Khảo Sát Đánh Giá Cảm Nhận Không Gian Đi Bộ tại TP.HCM",
+    page_title="Khảo Sát Đánh Giá Cảm Nhận Không Gian Đi Bộ TP.HCM",
     page_icon="🚶‍♂️",
     layout="centered"
 )
@@ -57,12 +57,15 @@ st.markdown("""
 
 
 # ==========================================
-# LƯU KẾT QUẢ SANG GOOGLE SHEET + LOCAL CSV
+# LƯU KẾT QUẢ VÀO GOOGLE SHEET & CSV LOCAL
 # ==========================================
 def save_response(dimension, img_a, img_b, chosen):
     payload = {
         "response_id": str(uuid.uuid4())[:8],
         "user_session_id": st.session_state.session_id,
+        "age": st.session_state.user_age,
+        "gender": st.session_state.user_gender,
+        "walk_freq": st.session_state.user_walk_freq,
         "dimension": dimension,
         "image_a": img_a,
         "image_b": img_b,
@@ -70,14 +73,14 @@ def save_response(dimension, img_a, img_b, chosen):
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    # 1. Tự động bắn dữ liệu về Google Sheet (An toàn vĩnh viễn)
+    # 1. Bắn sang Google Sheets
     if GOOGLE_SHEET_WEBHOOK_URL and "THAY_LINK_CUA_BAN_VAO_DAY" not in GOOGLE_SHEET_WEBHOOK_URL:
         try:
             requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=5)
         except Exception:
-            pass  # Tránh làm ngắt trải nghiệm người dùng nếu mạng yếu
+            pass
 
-    # 2. Lưu dự phòng vào CSV local
+    # 2. Lưu local dự phòng
     if not os.path.exists(CSV_FILE):
         df = pd.DataFrame(columns=list(payload.keys()))
         df.to_csv(CSV_FILE, index=False)
@@ -87,7 +90,7 @@ def save_response(dimension, img_a, img_b, chosen):
 
 
 # ==========================================
-# BỘ NHỚ TẠM (SESSION STATE)
+# KHỞI TẠO BỘ NHỚ TẠM (SESSION STATE)
 # ==========================================
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())[:8]
@@ -109,16 +112,13 @@ def get_random_pair():
     if not os.path.exists(IMAGE_DIR):
         return None, None
     images = [f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(valid_extensions)]
-
     if len(images) < 2:
         return None, None
-
-    img_a, img_b = random.sample(images, 2)
-    return img_a, img_b
+    return random.sample(images, 2)
 
 
 # ==========================================
-# MÀN HÌNH 1: MÀN HÌNH CHÀO
+# MÀN HÌNH 1: THÔNG TIN VÀ NHÂN KHẨU HỌC
 # ==========================================
 if st.session_state.step == 0:
     st.markdown("<h1 class='main-title'>Khảo Sát Đánh Giá Cảm Nhận Không Gian Đi Bộ tại TP.HCM</h1>",
@@ -127,20 +127,24 @@ if st.session_state.step == 0:
     st.markdown("""
     <div class='greeting-box'>
         <p><b>Kính chào Thầy/Cô, Anh/Chị và các bạn!</b></p>
-        <p>Nhóm nghiên cứu thuộc Trường Đại học Kinh tế TP.HCM (UEH) xin trân trọng gửi lời chào và lời chúc sức khỏe đến quý Thầy/Cô, Anh/Chị cùng các bạn.</p>
-        <p>Hiện tại, nhóm đang thực hiện đề tài nghiên cứu về <b>chất lượng môi trường vi khí hậu và cảm nhận không gian đi bộ đô thị tại TP.HCM</b>. Những đánh giá thực tế từ quý vị sẽ là nguồn dữ liệu khoa học vô cùng quý giá, giúp nhóm đề xuất các giải pháp quy hoạch vỉa hè thân thiện, an toàn và nâng cao chất lượng sống cho cộng đồng.</p>
-        <hr style='border: 0.5px solid #CBD5E1; margin: 12px 0;'>
-        <p><b>📌 Hướng dẫn đóng góp ý kiến:</b></p>
-        <ul>
-            <li>Khảo sát bao gồm <b>20 lượt so sánh cặp hình ảnh</b> thực tế trên các tuyến đường TP.HCM.</li>
-            <li>Ở mỗi câu, xin vui lòng bấm/chạm chọn góc phố mang lại cho quý vị cảm giác <b>An toàn hơn</b> hoặc <b>Thoải mái hơn</b> khi đi bộ.</li>
-            <li><b>Thời gian thực hiện:</b> Khoảng <b>1 đến 1.5 phút</b>.</li>
-        </ul>
-        <p><i>Kính mong nhận được sự hỗ trợ và đóng góp quý báu từ quý Thầy/Cô, Anh/Chị và các bạn!</i></p>
+        <p>Nhóm nghiên cứu thuộc Trường Đại học Kinh tế TP.HCM (UEH) đang thực hiện đề tài về <b>chất lượng không gian đi bộ đô thị tại TP.HCM</b>. Mọi thông tin đóng góp của quý vị đều được bảo mật tuyệt đối và chỉ phục vụ mục đích nghiên cứu khoa học.</p>
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🚀 Bắt đầu Khảo sát", type="primary", use_container_width=True):
+    st.subheader("📋 Thông tin chung (Vui lòng chọn nhanh):")
+
+    age = st.selectbox("1. Độ tuổi của bạn:",
+                       ["18 – 24 tuổi", "25 – 39 tuổi", "40 – 59 tuổi", "Dưới 18 tuổi", "Từ 60 tuổi trở lên"])
+    gender = st.selectbox("2. Giới tính:", ["Nam", "Nữ", "Khác / Không muốn tiết lộ"])
+    walk_freq = st.selectbox("3. Tần suất đi bộ tại TP.HCM của bạn:",
+                             ["Hằng ngày", "Vài lần / tuần", "Thỉnh thoảng", "Hiếm khi đi bộ"])
+
+    st.write("---")
+    if st.button("🚀 Bắt đầu Khảo sát (20 câu)", type="primary", use_container_width=True):
+        st.session_state.user_age = age
+        st.session_state.user_gender = gender
+        st.session_state.user_walk_freq = walk_freq
+
         st.session_state.step = 1
         st.session_state.current_count = 0
         st.session_state.pair = get_random_pair()
@@ -156,19 +160,16 @@ elif st.session_state.step == 1:
         st.error(f"❌ Không tìm thấy đủ ảnh trong thư mục: `{IMAGE_DIR}`")
         st.stop()
 
-    # Progress bar
     progress = st.session_state.current_count / TOTAL_PAIRS_PER_SESSION
     st.progress(progress)
-    st.caption(f"Tiến độ hoàn thành: **Câu {st.session_state.current_count + 1} / {TOTAL_PAIRS_PER_SESSION}**")
+    st.caption(f"Tiến độ: **Câu {st.session_state.current_count + 1} / {TOTAL_PAIRS_PER_SESSION}**")
 
-    # Xen kẽ 2 tiêu chí
     dimension = "An toàn hơn khi đi bộ" if st.session_state.current_count % 2 == 0 else "Thoải mái & Dễ chịu hơn"
 
     st.markdown(
         f"<h4 style='text-align: center; color: #1E3A8A; margin-bottom: 20px;'>Theo cảm nhận của bạn, góc phố nào cho cảm giác<br><u>{dimension.upper()}</u>?</h4>",
         unsafe_allow_html=True)
 
-    # Hiển thị 2 ảnh
     col1, col2 = st.columns(2)
 
     with col1:
@@ -194,21 +195,18 @@ elif st.session_state.step == 1:
             st.rerun()
 
 # ==========================================
-# MÀN HÌNH 3: HOÀN THÀNH & CẢM ƠN
+# MÀN HÌNH 3: HOÀN THÀNH
 # ==========================================
 elif st.session_state.step == 2:
     st.balloons()
-    st.success("🎉 Trân trọng cảm ơn sự đóng góp quý báu của Thầy/Cô, Anh/Chị và các bạn!")
-    st.write(
-        "Những ý kiến đánh giá này là nguồn dữ liệu vô cùng ý nghĩa giúp nhóm nghiên cứu hoàn thiện đề tài và đóng góp cho sự phát triển của không gian đi bộ đô thị.")
+    st.success("🎉 Trân trọng cảm ơn sự đóng góp quý báu của bạn!")
+    st.write("Dữ liệu của bạn đã được ghi nhận thành công vào hệ thống nghiên cứu.")
 
     col_a, col_b = st.columns(2)
     with col_a:
         if st.button("🔄 Thực hiện thêm 1 lượt nữa", use_container_width=True):
-            st.session_state.step = 1
-            st.session_state.current_count = 0
-            st.session_state.pair = get_random_pair()
+            st.session_state.step = 0
             st.rerun()
     with col_b:
         if st.button("🛑 Hoàn tất", use_container_width=True):
-            st.info("Kính chúc Thầy/Cô, Anh/Chị và các bạn nhiều sức khỏe! Quý vị có thể đóng tab trình duyệt này.")
+            st.info("Kính chúc bạn nhiều sức khỏe! Bạn có thể đóng tab trình duyệt này.")
